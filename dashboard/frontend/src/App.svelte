@@ -138,7 +138,7 @@
               </svg>
             </button>
           {/if}
-          <h1 class="text-3xl font-semibold tracking-tight">Sentinel</h1>
+          <h1 class="text-3xl font-semibold tracking-tight">Sentinel beta1</h1>
         </div>
         <p class="text-sm text-gray-500">Infrastructure monitoring</p>
       </div>
