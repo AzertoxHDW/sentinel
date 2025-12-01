@@ -27,6 +27,7 @@ type CPUMetrics struct {
 	UsagePercent float64 `json:"usage_percent"`
 	CoreCount    int     `json:"core_count"`
 	LoadAvg      []float64 `json:"load_avg,omitempty"` // Linux/Unix only
+	Model        string    `json:"model"`
 }
 
 type MemoryMetrics struct {
@@ -91,6 +92,12 @@ func (c *Collector) Collect() (*SystemMetrics, error) {
 	}
 	metrics.CPU.CoreCount = runtime.NumCPU()
 
+	// Get CPU model
+	cpuInfo, err := cpu.Info()
+	if err == nil && len(cpuInfo) > 0 {
+		metrics.CPU.Model = cpuInfo[0].ModelName
+	}
+
 	// Load average (Unix-like systems)
 	if runtime.GOOS != "windows" {
 		loadAvg, err := load.Avg()
@@ -137,23 +144,45 @@ if err == nil {
 }
 
 	// Network metrics
-	netIO, err := net.IOCounters(true)
-	if err == nil {
-		for _, io := range netIO {
-			// Skip loopback
-			if io.Name == "lo" || io.Name == "lo0" {
-				continue
-			}
-
-			metrics.Network = append(metrics.Network, NetworkMetrics{
-				Interface:   io.Name,
-				BytesSent:   io.BytesSent,
-				BytesRecv:   io.BytesRecv,
-				PacketsSent: io.PacketsSent,
-				PacketsRecv: io.PacketsRecv,
-			})
+netIO, err := net.IOCounters(true)
+if err == nil {
+	for _, io := range netIO {
+		// Skip loopback
+		if io.Name == "lo" || io.Name == "lo0" {
+			continue
 		}
+
+		// Skip common virtual interfaces
+		// Docker, VirtualBox, VMware, Wireguard, Tailscale, etc.
+		skipPrefixes := []string{
+			"docker", "veth", "br-", "virbr",  // Docker/libvirt
+			"vbox", "vmnet",                     // VirtualBox/VMware
+			"wg", "tun", "tap",                  // VPN/Wireguard
+			"tailscale",                         // Tailscale
+			"utun",                              // macOS VPN
+		}
+
+		skip := false
+		for _, prefix := range skipPrefixes {
+			if len(io.Name) >= len(prefix) && io.Name[:len(prefix)] == prefix {
+				skip = true
+				break
+			}
+		}
+
+		if skip {
+			continue
+		}
+
+		metrics.Network = append(metrics.Network, NetworkMetrics{
+			Interface:   io.Name,
+			BytesSent:   io.BytesSent,
+			BytesRecv:   io.BytesRecv,
+			PacketsSent: io.PacketsSent,
+			PacketsRecv: io.PacketsRecv,
+		})
 	}
+}
 
 	return metrics, nil
 }

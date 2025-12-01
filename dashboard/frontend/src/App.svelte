@@ -3,16 +3,19 @@
   import { api, type Agent, type SystemMetrics, type DiscoveredAgent } from './lib/api';
   import { formatBytes, formatUptime, formatPercent } from './lib/utils';
   import MetricsChart from './lib/components/MetricsChart.svelte';
+  import NetworkChart from './lib/components/NetworkChart.svelte';
   import AgentCard from './lib/components/AgentCard.svelte';
 
   let agents: Agent[] = [];
   let selectedAgent: Agent | null = null;
   let metrics: SystemMetrics | null = null;
+  let previousMetrics: SystemMetrics | null = null;
   let agentMetrics: Map<string, SystemMetrics> = new Map();
   let loading = false;
   let discoveredAgents: DiscoveredAgent[] = [];
   let showDiscoveryModal = false;
   let view: 'overview' | 'detail' = 'overview';
+  let lastUpdateTime: number = Date.now();
 
   onMount(async () => {
     await loadAgents();
@@ -53,10 +56,31 @@
 
   async function loadMetrics(agentId: string) {
     try {
-      metrics = await api.getMetrics(agentId);
+      const newMetrics = await api.getMetrics(agentId);
+      const now = Date.now();
+      const timeDiff = (now - lastUpdateTime) / 1000; // seconds
+
+      if (metrics && timeDiff > 0) {
+        previousMetrics = metrics;
+      }
+
+      metrics = newMetrics;
+      lastUpdateTime = now;
     } catch (error) {
       console.error('Failed to load metrics:', error);
     }
+  }
+
+  function calculateNetworkSpeed(currentBytes: number, previousBytes: number, timeDiff: number): number {
+    if (!previousBytes || timeDiff <= 0) return 0;
+    return Math.max(0, (currentBytes - previousBytes) / timeDiff);
+  }
+
+  function formatSpeed(bytesPerSecond: number): string {
+    if (bytesPerSecond < 1024) return `${bytesPerSecond.toFixed(0)} B/s`;
+    if (bytesPerSecond < 1024 * 1024) return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+    if (bytesPerSecond < 1024 * 1024 * 1024) return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
+    return `${(bytesPerSecond / (1024 * 1024 * 1024)).toFixed(2)} GB/s`;
   }
 
   async function discoverAgents() {
@@ -138,7 +162,7 @@
               </svg>
             </button>
           {/if}
-          <h1 class="text-3xl font-semibold tracking-tight">Sentinel beta1</h1>
+          <h1 class="text-3xl font-semibold tracking-tight">Sentinel - Beta2</h1>
         </div>
         <p class="text-sm text-gray-500">Infrastructure monitoring</p>
       </div>
@@ -257,7 +281,7 @@
           </div>
         </div>
 
-        <!-- Charts -->
+        <!-- Charts CPU & RAM -->
         <div class="bg-[#0d0d0d] rounded-2xl p-6 border border-gray-800">
           <h3 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-6">Historical Metrics</h3>
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -284,20 +308,23 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           <!-- CPU -->
-          <div class="bg-[#0d0d0d] rounded-2xl p-6 border border-gray-800">
-            <div class="text-xs text-gray-500 uppercase tracking-wider mb-4">CPU</div>
-            <div class="flex items-baseline gap-2 mb-4">
-              <span class="text-4xl font-mono font-medium">{metrics.cpu.usage_percent.toFixed(1)}</span>
-              <span class="text-lg text-gray-500">%</span>
-            </div>
-            <div class="h-2 bg-gray-900 rounded-full overflow-hidden mb-4">
-              <div 
-                class="h-full bg-emerald-400 rounded-full transition-all duration-500"
-                style="width: {metrics.cpu.usage_percent}%"
-              ></div>
-            </div>
-            <p class="text-sm text-gray-500">{metrics.cpu.core_count} cores</p>
-          </div>
+<div class="bg-[#0d0d0d] rounded-2xl p-6 border border-gray-800">
+  <div class="flex items-center justify-between mb-4">
+    <div class="text-xs text-gray-500 uppercase tracking-wider">CPU</div>
+    <div class="text-xs text-gray-400 font-mono">{metrics.cpu.core_count} cores</div>
+  </div>
+  <div class="flex items-baseline gap-2 mb-2">
+    <span class="text-4xl font-mono font-medium">{metrics.cpu.usage_percent.toFixed(1)}</span>
+    <span class="text-lg text-gray-500">%</span>
+  </div>
+  <div class="h-2 bg-gray-900 rounded-full overflow-hidden mb-4">
+    <div 
+      class="h-full bg-emerald-400 rounded-full transition-all duration-500"
+      style="width: {metrics.cpu.usage_percent}%"
+    ></div>
+  </div>
+  <p class="text-sm text-gray-500">{metrics.cpu.model}</p>
+</div>
 
           <!-- Memory -->
           <div class="bg-[#0d0d0d] rounded-2xl p-6 border border-gray-800">
@@ -340,27 +367,58 @@
           </div>
         </div>
 
-        <!-- Network -->
-        <div class="bg-[#0d0d0d] rounded-2xl p-6 border border-gray-800">
-          <div class="text-xs text-gray-500 uppercase tracking-wider mb-6">Network</div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {#each metrics.network as net}
-              <div class="p-4 bg-gray-900/30 rounded-xl">
-                <div class="font-mono text-sm mb-3 text-gray-400">{net.interface}</div>
-                <div class="space-y-2">
-                  <div class="flex items-center justify-between text-sm">
-                    <span class="text-gray-500">Received</span>
-                    <span class="font-mono">{formatBytes(net.bytes_recv)}</span>
-                  </div>
-                  <div class="flex items-center justify-between text-sm">
-                    <span class="text-gray-500">Sent</span>
-                    <span class="font-mono">{formatBytes(net.bytes_sent)}</span>
-                  </div>
-                </div>
-              </div>
-            {/each}
+        <!-- Network Stats (Current Speed) -->
+{#if metrics.network.length > 0}
+  <div class="bg-[#0d0d0d] rounded-2xl p-6 border border-gray-800">
+    <div class="text-xs text-gray-500 uppercase tracking-wider mb-6">Network Speed</div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {#each metrics.network as net}
+        {@const prevNet = previousMetrics?.network.find(n => n.interface === net.interface)}
+        {@const timeDiff = (Date.now() - lastUpdateTime) / 1000 + 5} <!-- approximate 5s refresh -->
+        {@const downloadSpeed = prevNet ? calculateNetworkSpeed(net.bytes_recv, prevNet.bytes_recv, timeDiff) : 0}
+        {@const uploadSpeed = prevNet ? calculateNetworkSpeed(net.bytes_sent, prevNet.bytes_sent, timeDiff) : 0}
+        
+        <div class="p-4 bg-gray-900/30 rounded-xl">
+          <div class="font-mono text-sm mb-3 text-gray-400">{net.interface}</div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-500 flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+                Download
+              </span>
+              <span class="font-mono text-blue-400">{formatSpeed(downloadSpeed)}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-500 flex items-center gap-2">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+                Upload
+              </span>
+              <span class="font-mono text-emerald-400">{formatSpeed(uploadSpeed)}</span>
+            </div>
           </div>
         </div>
+      {/each}
+    </div>
+  </div>
+{/if}
+
+        <!-- Network Activity Charts -->
+    {#if metrics.network.length > 0}
+      <div class="bg-[#0d0d0d] rounded-2xl p-6 border border-gray-800">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {#each metrics.network as net}
+            <NetworkChart 
+              agentId={selectedAgent.id}
+              interface_name={net.interface}
+            />
+          {/each}
+        </div>
+      </div>
+    {/if}
       </div>
     {/if}
   </div>
