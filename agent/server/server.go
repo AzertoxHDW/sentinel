@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/azertox/sentinel/agent/collector"
+	"github.com/AzertoxHDW/sentinel/agent/collector"
 )
 
 type Server struct {

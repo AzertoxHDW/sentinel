@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/azertox/sentinel/agent/server"
+	"github.com/AzertoxHDW/sentinel/agent/server"
 )
 
 func main() {
