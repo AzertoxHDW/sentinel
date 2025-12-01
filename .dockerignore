@@ -1,0 +1,12 @@
+node_modules
+dist
+.svelte-kit
+*.log
+.git
+.gitignore
+agents.json
+influx.conf
+sentinel-agent
+sentinel-dashboard
+*.exe
+*.db
