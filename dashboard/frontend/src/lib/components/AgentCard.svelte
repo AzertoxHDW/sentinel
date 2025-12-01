@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { Agent, SystemMetrics } from '../api';
+  import { formatBytes } from '../utils';
+  import Gauge from './Gauge.svelte';
 
   export let agent: Agent;
   export let metrics: SystemMetrics | null;
@@ -12,6 +14,9 @@
   
   $: hasWarnings = cpuWarning || memWarning || diskWarning;
 
+  // Get total disk capacity
+  $: totalDiskCapacity = metrics ? metrics.disk.reduce((sum, d) => sum + d.total, 0) : 0;
+
   function handleDelete(event: Event) {
     event.stopPropagation();
     if (confirm(`Remove ${agent.hostname}?`)) {
@@ -23,6 +28,17 @@
     if (value >= warningThreshold) return 'text-amber-400';
     if (value >= 70) return 'text-yellow-500';
     return 'text-emerald-400';
+  }
+
+  // Shorten CPU model name
+  function shortenCPUModel(model: string): string {
+    return model
+      .replace(/\(R\)/g, '')
+      .replace(/\(TM\)/g, '')
+      .replace(/CPU/g, '')
+      .replace(/Processor/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 </script>
 
@@ -60,46 +76,48 @@
       <div class="text-sm text-red-400/80">No data available</div>
     {:else if metrics}
       <!-- Metrics -->
-      <div class="space-y-4">
-        <!-- CPU & Memory -->
+      <div class="space-y-6">
+        <!-- CPU & Memory Gauges -->
         <div class="grid grid-cols-2 gap-6">
-          <div>
-            <div class="text-xs text-gray-500 uppercase tracking-wider mb-2">CPU</div>
-            <div class="text-2xl font-mono font-medium {getMetricColor(metrics.cpu.usage_percent)}">
-              {metrics.cpu.usage_percent.toFixed(1)}%
-            </div>
-            <div class="mt-2 h-1 bg-gray-800 rounded-full overflow-hidden">
-              <div 
-                class="h-full rounded-full transition-all duration-500 {
-                  cpuWarning ? 'bg-amber-400' : 'bg-emerald-400'
-                }"
-                style="width: {metrics.cpu.usage_percent}%"
-              ></div>
-            </div>
-          </div>
-
-          <div>
-            <div class="text-xs text-gray-500 uppercase tracking-wider mb-2">Memory</div>
-            <div class="text-2xl font-mono font-medium {getMetricColor(metrics.memory.used_percent)}">
-              {metrics.memory.used_percent.toFixed(1)}%
-            </div>
-            <div class="mt-2 h-1 bg-gray-800 rounded-full overflow-hidden">
-              <div 
-                class="h-full rounded-full transition-all duration-500 {
-                  memWarning ? 'bg-amber-400' : 'bg-emerald-400'
-                }"
-                style="width: {metrics.memory.used_percent}%"
-              ></div>
-            </div>
-          </div>
+          <Gauge value={metrics.cpu.usage_percent} label="CPU" />
+          <Gauge value={metrics.memory.used_percent} label="Memory" />
         </div>
 
-        <!-- Disk -->
+        <!-- Hardware Specs -->
+        <div class="pt-4 border-t border-gray-800 space-y-2 text-xs">
+          <!-- CPU Model -->
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-gray-500">CPU</span>
+            <span class="text-gray-400 text-right font-mono leading-tight">
+              {shortenCPUModel(metrics.cpu.model)}
+            </span>
+          </div>
+          
+          <!-- RAM -->
+          <div class="flex items-center justify-between">
+            <span class="text-gray-500">RAM</span>
+            <span class="text-gray-400 font-mono">
+              {formatBytes(metrics.memory.total)}
+            </span>
+          </div>
+
+          <!-- Storage -->
+          {#if metrics.disk.length > 0}
+            <div class="flex items-center justify-between">
+              <span class="text-gray-500">Storage</span>
+              <span class="text-gray-400 font-mono">
+                {formatBytes(totalDiskCapacity)}
+              </span>
+            </div>
+          {/if}
+        </div>
+
+        <!-- Disk Usage -->
         {#if metrics.disk.length > 0}
           <div class="pt-4 border-t border-gray-800">
-            <div class="text-xs text-gray-500 uppercase tracking-wider mb-3">Storage</div>
+            <div class="text-xs text-gray-500 uppercase tracking-wider mb-3">Root Usage</div>
             <div class="space-y-2">
-              {#each metrics.disk.slice(0, 2) as disk}
+              {#each metrics.disk as disk}
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-mono text-gray-400">{disk.mount_point}</span>
                   <span class="text-xs font-mono {getMetricColor(disk.used_percent, 90)}">

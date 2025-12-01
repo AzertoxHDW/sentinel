@@ -25,6 +25,7 @@ export interface SystemMetrics {
     usage_percent: number;
     core_count: number;
     load_avg?: number[];
+    model: string;
   };
   memory: {
     total: number;
