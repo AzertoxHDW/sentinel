@@ -9,6 +9,7 @@ import (
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/shirou/gopsutil/v3/net"
+	"github.com/shirou/gopsutil/v3/load"
 )
 
 // SystemMetrics holds all collected system information
@@ -92,7 +93,7 @@ func (c *Collector) Collect() (*SystemMetrics, error) {
 
 	// Load average (Unix-like systems)
 	if runtime.GOOS != "windows" {
-		loadAvg, err := cpu.LoadAvg()
+		loadAvg, err := load.Avg()
 		if err == nil {
 			metrics.CPU.LoadAvg = []float64{loadAvg.Load1, loadAvg.Load5, loadAvg.Load15}
 		}
