@@ -49,7 +49,7 @@ services:
     networks:
       - sentinel-network
     volumes:
-      - ./agents.json:/app/agents.json
+      - agents-data:/app
     restart: unless-stopped
 
   dashboard-frontend:
@@ -72,3 +72,4 @@ networks:
 volumes:
   influxdb-data:
   influxdb-config:
+  agents-data:
