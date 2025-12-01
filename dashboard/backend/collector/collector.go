@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"sentinel/dashboard/backend/storage"
+	"github.com/AzertoxHDW/sentinel/dashboard/backend/storage"
 )
 
 type MetricsCollector struct {

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"sentinel/dashboard/backend/discovery"
-	"sentinel/dashboard/backend/storage"
+	"github.com/AzertoxHDW/sentinel/dashboard/backend/discovery"
+	"github.com/AzertoxHDW/sentinel/dashboard/backend/storage"
 )
 
 type Server struct {

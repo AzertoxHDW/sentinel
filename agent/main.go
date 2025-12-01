@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"sentinel/agent/discovery"
-	"sentinel/agent/server"
+	"github.com/AzertoxHDW/sentinel/agent/discovery"
+	"github.com/AzertoxHDW/sentinel/agent/server"
 	"strconv"
 )
 
