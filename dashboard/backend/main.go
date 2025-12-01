@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"sentinel/dashboard/backend/api"
-	"sentinel/dashboard/backend/collector"
-	"sentinel/dashboard/backend/storage"
+	"github.com/AzertoxHDW/sentinel/dashboard/backend/api"
+	"github.com/AzertoxHDW/sentinel/dashboard/backend/collector"
+	"github.com/AzertoxHDW/sentinel/dashboard/backend/storage"
 )
 
 func main() {
