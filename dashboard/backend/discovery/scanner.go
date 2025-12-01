@@ -14,10 +14,10 @@ const (
 )
 
 type DiscoveredAgent struct {
-	Hostname string
-	Instance string
-	Port     int
-	IPs      []string
+	Hostname string   `json:"hostname"`
+	Instance string   `json:"instance"`
+	Port     int      `json:"port"`
+	IPs      []string `json:"ips"`
 }
 
 type Scanner struct{}
@@ -32,12 +32,28 @@ func (s *Scanner) Scan(timeout time.Duration) ([]*DiscoveredAgent, error) {
 		return nil, err
 	}
 
-	entries := make(chan *zeroconf.ServiceEntry, 10) // Buffered channel
-	agents := []*DiscoveredAgent{}
-	done := make(chan bool)
+	entries := make(chan *zeroconf.ServiceEntry)
+	agents := make([]*DiscoveredAgent, 0)
 
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Start browsing in background
 	go func() {
-		for entry := range entries {
+		if err := resolver.Browse(ctx, ServiceType, Domain, entries); err != nil {
+			log.Printf("Browse error: %v", err)
+		}
+	}()
+
+	// Collect entries until context is done
+	for {
+		select {
+		case entry, ok := <-entries:
+			if !ok {
+				// Channel closed, we're done
+				return agents, nil
+			}
+
 			agent := &DiscoveredAgent{
 				Hostname: entry.HostName,
 				Instance: entry.Instance,
@@ -54,21 +70,10 @@ func (s *Scanner) Scan(timeout time.Duration) ([]*DiscoveredAgent, error) {
 				agents = append(agents, agent)
 				log.Printf("Discovered agent: %s at %v:%d", agent.Instance, agent.IPs, agent.Port)
 			}
+
+		case <-ctx.Done():
+			// Timeout reached, return what we have
+			return agents, nil
 		}
-		done <- true
-	}()
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	if err := resolver.Browse(ctx, ServiceType, Domain, entries); err != nil {
-		close(entries)
-		return nil, err
 	}
-
-	<-ctx.Done()
-	close(entries) // Close before waiting
-	<-done         // Wait for goroutine to finish
-
-	return agents, nil
 }

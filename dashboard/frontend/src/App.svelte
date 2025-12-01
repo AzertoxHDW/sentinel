@@ -1,16 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { api, type Agent, type SystemMetrics } from './lib/api';
+  import { api, type Agent, type SystemMetrics, type DiscoveredAgent } from './lib/api';
   import { formatBytes, formatUptime, formatPercent } from './lib/utils';
+  import MetricsChart from './lib/components/MetricsChart.svelte';
 
   let agents: Agent[] = [];
   let selectedAgent: Agent | null = null;
   let metrics: SystemMetrics | null = null;
   let loading = false;
+  let discoveredAgents: DiscoveredAgent[] = [];
+  let showDiscoveryModal = false;
 
   onMount(async () => {
     await loadAgents();
-    // Auto-refresh metrics every 5 seconds
     const interval = setInterval(async () => {
       if (selectedAgent) {
         await loadMetrics(selectedAgent.id);
@@ -43,9 +45,9 @@
   async function discoverAgents() {
     loading = true;
     try {
-      const discovered = await api.discoverAgents();
-      console.log('Discovered agents:', discovered);
-      // TODO: Show discovered agents in UI
+      discoveredAgents = await api.discoverAgents();
+      showDiscoveryModal = true;
+      console.log('Discovered agents:', discoveredAgents);
     } catch (error) {
       console.error('Discovery failed:', error);
     } finally {
@@ -53,9 +55,37 @@
     }
   }
 
+  async function addDiscoveredAgent(discovered: DiscoveredAgent) {
+    try {
+      // Use first IP address
+      const ipAddress = discovered.ips[0];
+      await api.addAgent({
+        ip_address: ipAddress,
+        port: discovered.port,
+        hostname: discovered.instance,
+      });
+      
+      // Reload agents list
+      await loadAgents();
+      
+      // Remove from discovered list
+      discoveredAgents = discoveredAgents.filter(a => a.instance !== discovered.instance);
+      
+      if (discoveredAgents.length === 0) {
+        showDiscoveryModal = false;
+      }
+    } catch (error) {
+      console.error('Failed to add agent:', error);
+    }
+  }
+
   function selectAgent(agent: Agent) {
     selectedAgent = agent;
     loadMetrics(agent.id);
+  }
+
+  function closeModal() {
+    showDiscoveryModal = false;
   }
 </script>
 
@@ -85,6 +115,45 @@
         Refresh
       </button>
     </div>
+
+    <!-- Discovery Modal -->
+    {#if showDiscoveryModal}
+      <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" on:click={closeModal}>
+        <div class="bg-gray-800 rounded-xl p-6 max-w-2xl w-full mx-4 border border-gray-700" on:click|stopPropagation>
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold">Discovered Agents</h3>
+            <button on:click={closeModal} class="text-gray-400 hover:text-white">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {#if discoveredAgents.length === 0}
+            <p class="text-gray-400">No new agents found on the network.</p>
+          {:else}
+            <div class="space-y-3">
+              {#each discoveredAgents as discovered}
+                <div class="flex items-center justify-between p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                  <div>
+                    <div class="font-semibold">{discovered.instance}</div>
+                    <div class="text-sm text-gray-400">
+                      {discovered.ips.join(', ')} : {discovered.port}
+                    </div>
+                  </div>
+                  <button
+                    on:click={() => addDiscoveredAgent(discovered)}
+                    class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                  >
+                    Add Agent
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
+    {/if}
 
     <!-- Agent List -->
     <div class="mb-8 bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
@@ -117,7 +186,7 @@
       {/if}
     </div>
 
-    <!-- Metrics Display -->
+    <!-- Rest of the metrics display stays the same -->
     {#if metrics && selectedAgent}
       <div class="space-y-6">
         <!-- System Info -->
@@ -128,9 +197,32 @@
           </div>
         </div>
 
-        <!-- CPU -->
+        <!-- Historical Charts -->
         <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-          <h3 class="text-xl font-semibold mb-4">CPU</h3>
+          <h3 class="text-xl font-semibold mb-6">Historical Metrics (Last Hour)</h3>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <MetricsChart 
+              agentId={selectedAgent.id}
+              measurement="cpu"
+              field="usage_percent"
+              title="CPU Usage"
+              color="#10b981"
+              unit="%"
+            />
+            <MetricsChart 
+              agentId={selectedAgent.id}
+              measurement="memory"
+              field="used_percent"
+              title="Memory Usage"
+              color="#8b5cf6"
+              unit="%"
+            />
+          </div>
+        </div>
+
+        <!-- Current CPU -->
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+          <h3 class="text-xl font-semibold mb-4">CPU (Current)</h3>
           <div class="space-y-2">
             <div class="flex justify-between">
               <span>Usage:</span>
@@ -148,9 +240,9 @@
           </div>
         </div>
 
-        <!-- Memory -->
+        <!-- Current Memory -->
         <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-          <h3 class="text-xl font-semibold mb-4">Memory</h3>
+          <h3 class="text-xl font-semibold mb-4">Memory (Current)</h3>
           <div class="space-y-2">
             <div class="flex justify-between">
               <span>Usage:</span>
