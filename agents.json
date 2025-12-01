@@ -1,11 +1,11 @@
 [
   {
-    "id": "your-hostname:9100",
-    "hostname": "your-hostname",
-    "ip_address": "127.0.0.1",
+    "id": "Snowflake:9100",
+    "hostname": "Snowflake",
+    "ip_address": "192.168.0.4",
     "port": 9100,
-    "added_at": "2025-12-01T18:21:08.783223432+01:00",
-    "last_seen": "2025-12-01T18:50:26.976816709+01:00",
+    "added_at": "2025-12-01T21:31:31.32749972+01:00",
+    "last_seen": "2025-12-01T21:40:04.728149319+01:00",
     "status": "online"
   }
 ]
