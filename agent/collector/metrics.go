@@ -111,25 +111,30 @@ func (c *Collector) Collect() (*SystemMetrics, error) {
 	}
 
 	// Disk metrics
-	partitions, err := disk.Partitions(false)
-	if err == nil {
-		for _, partition := range partitions {
-			usage, err := disk.Usage(partition.Mountpoint)
-			if err != nil {
-				continue
-			}
-
-			metrics.Disk = append(metrics.Disk, DiskMetrics{
-				Device:      partition.Device,
-				MountPoint:  partition.Mountpoint,
-				FSType:      partition.Fstype,
-				Total:       usage.Total,
-				Used:        usage.Used,
-				Free:        usage.Free,
-				UsedPercent: usage.UsedPercent,
-			})
+partitions, err := disk.Partitions(false)
+if err == nil {
+	for _, partition := range partitions {
+		// Only collect root partition
+		if partition.Mountpoint != "/" {
+			continue
 		}
+
+		usage, err := disk.Usage(partition.Mountpoint)
+		if err != nil {
+			continue
+		}
+
+		metrics.Disk = append(metrics.Disk, DiskMetrics{
+			Device:      partition.Device,
+			MountPoint:  partition.Mountpoint,
+			FSType:      partition.Fstype,
+			Total:       usage.Total,
+			Used:        usage.Used,
+			Free:        usage.Free,
+			UsedPercent: usage.UsedPercent,
+		})
 	}
+}
 
 	// Network metrics
 	netIO, err := net.IOCounters(true)
