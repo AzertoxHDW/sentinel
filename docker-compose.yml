@@ -17,8 +17,6 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=sentinel
       - DOCKER_INFLUXDB_INIT_BUCKET=metrics
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=sentinel-super-secret-token-change-me-in-production
-    networks:
-      - sentinel-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "influx", "ping"]
@@ -48,8 +46,6 @@ services:
     depends_on:
       influxdb:
         condition: service_healthy
-    networks:
-      - sentinel-network
     volumes:
       - agents-data:/app
     restart: unless-stopped
