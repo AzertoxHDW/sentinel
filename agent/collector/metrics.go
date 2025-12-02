@@ -155,11 +155,11 @@ if err == nil {
 		// Skip common virtual interfaces
 		// Docker, VirtualBox, VMware, Wireguard, Tailscale, etc.
 		skipPrefixes := []string{
-			"docker", "veth", "br-", "virbr",  // Docker/libvirt
-			"vbox", "vmnet",                     // VirtualBox/VMware
-			"wg", "tun", "tap",                  // VPN/Wireguard
-			"tailscale",                         // Tailscale
-			"utun",                              // macOS VPN
+			"docker", "veth", "br-", "virbr", "fw", "vmbr",  // Docker/libvirt
+			"vbox", "vmnet",                     			 // VirtualBox/VMware
+			"wg", "tun", "tap",                  			 // VPN/Wireguard
+			"tailscale",                         			 // Tailscale
+			"utun",                              			 // macOS VPN
 		}
 
 		skip := false
