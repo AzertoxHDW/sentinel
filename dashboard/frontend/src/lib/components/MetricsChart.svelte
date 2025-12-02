@@ -18,7 +18,7 @@
   async function fetchData() {
     try {
       const response = await fetch(
-        `http://localhost:8080/api/history/${agentId}/${measurement}?duration=1h`
+        `http://host.docker.internal:8080/api/history/${agentId}/${measurement}?duration=1h`
       );
       const data = await response.json();
 
