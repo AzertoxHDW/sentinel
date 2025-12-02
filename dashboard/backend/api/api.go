@@ -73,6 +73,18 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// Helper to normalize hostnames for comparison
+// Removes trailing dots, converts to lowercase, and removes domain suffixes
+// Example: "MyServer.local." -> "myserver"
+func normalizeHostname(h string) string {
+	h = strings.ToLower(strings.TrimSpace(h))
+	h = strings.TrimSuffix(h, ".")
+	if idx := strings.Index(h, "."); idx != -1 {
+		return h[:idx]
+	}
+	return h
+}
+
 // GET /api/agents - List all agents
 // POST /api/agents - Add new agent
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -178,64 +190,51 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 
 	// Get already registered agents
 	registeredAgents := s.store.GetAllAgents()
-	log.Printf("Current Store: %d registered agents", len(registeredAgents))
-	for i, a := range registeredAgents {
-		log.Printf("  [%d] ID=%s Hostname='%s' IP=%s Port=%d", i, a.ID, a.Hostname, a.IPAddress, a.Port)
-	}
 	
 	// Filter out already registered agents
 	var newAgents []*discovery.DiscoveredAgent
-	for i, disc := range discovered {
-		log.Printf("--- Processing Discovered Agent #%d ---", i+1)
-		log.Printf("  Instance Name: '%s'", disc.Instance)
-		log.Printf("  Hostname:      '%s'", disc.Hostname)
-		log.Printf("  Port:          %d", disc.Port)
-		log.Printf("  IPs:           %v", disc.IPs)
+	for _, disc := range discovered {
+		// Normalize discovered names for comparison
+		discInstanceNorm := normalizeHostname(disc.Instance)
+		discHostnameNorm := normalizeHostname(disc.Hostname)
+
+		log.Printf("checking discovered agent: Instance='%s' (norm: '%s'), Hostname='%s' (norm: '%s'), IPs=%v", 
+			disc.Instance, discInstanceNorm, disc.Hostname, discHostnameNorm, disc.IPs)
 
 		isRegistered := false
 		
-		for j, registered := range registeredAgents {
-			log.Printf("  Comparing with Registered Agent #%d (%s)...", j+1, registered.Hostname)
+		for _, registered := range registeredAgents {
+			regHostnameNorm := normalizeHostname(registered.Hostname)
 
-			// 1. Check if Hostname matches (Primary ID check)
-			matchName := strings.EqualFold(registered.Hostname, disc.Instance)
-			log.Printf("    Name Check: '%s' vs '%s' => Match? %v", registered.Hostname, disc.Instance, matchName)
-			
-			if matchName {
-				log.Printf("    => MATCH FOUND by Name!")
+			// 1. Check if Hostname matches (Primary ID check with normalization)
+			// Checks if "myserver" == "myserver" OR "myserver" == "myserver.local"
+			if regHostnameNorm == discInstanceNorm || regHostnameNorm == discHostnameNorm {
+				log.Printf("  -> MATCH FOUND by Name! ('%s' matches registered '%s')", disc.Instance, registered.Hostname)
 				isRegistered = true
 				break
 			}
 
 			// 2. Check if any IP matches (Fallback)
-			matchIP := false
 			for _, ip := range disc.IPs {
 				if registered.IPAddress == ip && registered.Port == disc.Port {
-					matchIP = true
-					log.Printf("    IP Check: %s == %s AND Port %d == %d => MATCH!", registered.IPAddress, ip, registered.Port, disc.Port)
+					log.Printf("  -> MATCH FOUND by IP! (%s)", ip)
+					isRegistered = true
 					break
-				} else {
-					// Verbose log for non-matching IPs
-					// log.Printf("    IP Check: %s != %s OR Port %d != %d", registered.IPAddress, ip, registered.Port, disc.Port)
 				}
 			}
-
-			if matchIP {
-				log.Printf("    => MATCH FOUND by IP/Port!")
-				isRegistered = true
+			if isRegistered {
 				break
 			}
 		}
 		
 		if !isRegistered {
-			log.Printf("  => Result: NEW AGENT (Not found in store)")
+			log.Printf("  -> Result: NEW AGENT")
 			newAgents = append(newAgents, disc)
 		} else {
-			log.Printf("  => Result: EXISTING AGENT (Ignored)")
+			log.Printf("  -> Result: EXISTING AGENT (Ignored)")
 		}
 	}
 
-	log.Printf("Discovery Complete. Returning %d new agents.", len(newAgents))
 	s.respondJSON(w, http.StatusOK, newAgents)
 }
 
