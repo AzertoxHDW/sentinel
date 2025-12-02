@@ -184,17 +184,18 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 	for _, disc := range discovered {
 		isRegistered := false
 		
-		// Check against registered agents
 		for _, registered := range registeredAgents {
 			// 1. Check if Hostname matches (Primary ID check)
-			// 'disc.Instance' usually contains the pure hostname (e.g. "my-server")
-			// 'registered.Hostname' also contains the hostname.
-			if registered.Hostname == disc.Instance {
+			// 'disc.Instance' is the mDNS Instance Name (e.g. "MyServer")
+			// 'registered.Hostname' is from the agent metrics (e.g. "MyServer")
+			// We use EqualFold for case-insensitive comparison
+			if strings.EqualFold(registered.Hostname, disc.Instance) {
 				isRegistered = true
 				break
 			}
 
-			// 2. Check if any IP matches (Fallback)
+			// 2. Check if any IP matches (Fallback check)
+			// This catches cases where hostname might differ slightly but IPs match exactly
 			for _, ip := range disc.IPs {
 				if registered.IPAddress == ip && registered.Port == disc.Port {
 					isRegistered = true
