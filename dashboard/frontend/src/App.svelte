@@ -16,6 +16,7 @@
   let showDiscoveryModal = false;
   let view: 'overview' | 'detail' = 'overview';
   let lastUpdateTime: number = Date.now();
+  let addingAgentId: string | null = null
 
   onMount(async () => {
     await loadAgents();
@@ -98,6 +99,9 @@
   }
 
   async function addDiscoveredAgent(discovered: DiscoveredAgent) {
+    const agentId = `${discovered.instance}:${discovered.port}`;  // Create unique ID
+    addingAgentId = agentId;  // Set loading state
+    
     try {
       const ipAddress = discovered.ips[0];
       await api.addAgent({
@@ -114,6 +118,8 @@
       }
     } catch (error) {
       console.error('Failed to add agent:', error);
+    } finally {
+      addingAgentId = null;  // Clear loading state
     }
   }
 
@@ -190,42 +196,56 @@
 
     <!-- Discovery Modal -->
     {#if showDiscoveryModal}
-      <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" on:click={closeModal}>
-        <div class="bg-[#0d0d0d] rounded-2xl p-6 max-w-2xl w-full border border-gray-800" on:click|stopPropagation>
-          <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-medium">Discovered Agents</h3>
-            <button on:click={closeModal} class="p-2 hover:bg-gray-800 rounded-lg transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {#if discoveredAgents.length === 0}
-            <p class="text-sm text-gray-500">No new agents found</p>
-          {:else}
-            <div class="space-y-3">
-              {#each discoveredAgents as discovered}
-                <div class="flex items-center justify-between p-4 bg-gray-900/50 rounded-xl border border-gray-800">
-                  <div>
-                    <div class="font-medium">{discovered.instance}</div>
-                    <div class="text-sm text-gray-500 font-mono mt-0.5">
-                      {discovered.ips[0]}:{discovered.port}
-                    </div>
-                  </div>
-                  <button
-                    on:click={() => addDiscoveredAgent(discovered)}
-                    class="px-4 py-2 text-sm bg-emerald-500 hover:bg-emerald-600 text-black font-medium rounded-lg transition-colors"
-                  >
-                    Add
-                  </button>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
+  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" on:click={closeModal}>
+    <div class="bg-[#0d0d0d] rounded-2xl p-6 max-w-2xl w-full border border-gray-800" on:click|stopPropagation>
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg font-medium">Discovered Agents</h3>
+        <button on:click={closeModal} class="p-2 hover:bg-gray-800 rounded-lg transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
-    {/if}
+
+      {#if discoveredAgents.length === 0}
+        <p class="text-sm text-gray-500">No new agents found</p>
+      {:else}
+        <div class="space-y-3">
+          {#each discoveredAgents as discovered}
+            {@const agentId = `${discovered.instance}:${discovered.port}`}
+            {@const isAdding = addingAgentId === agentId}
+            
+            <div class="flex items-center justify-between p-4 bg-gray-900/50 rounded-xl border border-gray-800">
+              <div>
+                <div class="font-medium">{discovered.instance}</div>
+                <div class="text-sm text-gray-500 font-mono mt-0.5">
+                  {discovered.ips[0]}:{discovered.port}
+                </div>
+              </div>
+              <button
+                on:click={() => addDiscoveredAgent(discovered)}
+                disabled={isAdding}
+                class="px-4 py-2 text-sm bg-emerald-500 hover:bg-emerald-600 text-black font-medium rounded-lg 
+                       transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {#if isAdding}
+                  <span class="flex gap-1">
+                    <span class="w-1.5 h-1.5 bg-black rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+                    <span class="w-1.5 h-1.5 bg-black rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+                    <span class="w-1.5 h-1.5 bg-black rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+                  </span>
+                  Adding...
+                {:else}
+                  Add
+                {/if}
+              </button>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
 
     <!-- OVERVIEW -->
     {#if view === 'overview'}
