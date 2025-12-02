@@ -177,8 +177,6 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("=== Starting Discovery Scan ===")
-
 	discovered, err := s.scanner.Scan(3 * time.Second)
 	if err != nil {
 		log.Printf("ERROR: Discovery failed: %v", err)
@@ -209,7 +207,6 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 			// 1. Check if Hostname matches (Primary ID check with normalization)
 			// Checks if "myserver" == "myserver" OR "myserver" == "myserver.local"
 			if regHostnameNorm == discInstanceNorm || regHostnameNorm == discHostnameNorm {
-				log.Printf("  -> MATCH FOUND by Name! ('%s' matches registered '%s')", disc.Instance, registered.Hostname)
 				isRegistered = true
 				break
 			}
@@ -217,7 +214,6 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 			// 2. Check if any IP matches (Fallback)
 			for _, ip := range disc.IPs {
 				if registered.IPAddress == ip && registered.Port == disc.Port {
-					log.Printf("  -> MATCH FOUND by IP! (%s)", ip)
 					isRegistered = true
 					break
 				}
@@ -228,10 +224,8 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		if !isRegistered {
-			log.Printf("  -> Result: NEW AGENT")
 			newAgents = append(newAgents, disc)
 		} else {
-			log.Printf("  -> Result: EXISTING AGENT (Ignored)")
 		}
 	}
 
