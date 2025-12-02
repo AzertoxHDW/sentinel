@@ -165,54 +165,77 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Scanning network for Sentinel agents...")
+	log.Println("=== Starting Discovery Scan ===")
 
 	discovered, err := s.scanner.Scan(3 * time.Second)
 	if err != nil {
-		log.Printf("Discovery error: %v", err)
+		log.Printf("ERROR: Discovery failed: %v", err)
 		s.respondError(w, http.StatusInternalServerError, "Discovery failed")
 		return
 	}
 
-	log.Printf("Found %d agents via mDNS", len(discovered))
+	log.Printf("Scanner found %d raw agents via mDNS", len(discovered))
 
 	// Get already registered agents
 	registeredAgents := s.store.GetAllAgents()
+	log.Printf("Current Store: %d registered agents", len(registeredAgents))
+	for i, a := range registeredAgents {
+		log.Printf("  [%d] ID=%s Hostname='%s' IP=%s Port=%d", i, a.ID, a.Hostname, a.IPAddress, a.Port)
+	}
 	
 	// Filter out already registered agents
 	var newAgents []*discovery.DiscoveredAgent
-	for _, disc := range discovered {
+	for i, disc := range discovered {
+		log.Printf("--- Processing Discovered Agent #%d ---", i+1)
+		log.Printf("  Instance Name: '%s'", disc.Instance)
+		log.Printf("  Hostname:      '%s'", disc.Hostname)
+		log.Printf("  Port:          %d", disc.Port)
+		log.Printf("  IPs:           %v", disc.IPs)
+
 		isRegistered := false
 		
-		for _, registered := range registeredAgents {
+		for j, registered := range registeredAgents {
+			log.Printf("  Comparing with Registered Agent #%d (%s)...", j+1, registered.Hostname)
+
 			// 1. Check if Hostname matches (Primary ID check)
-			// 'disc.Instance' is the mDNS Instance Name (e.g. "MyServer")
-			// 'registered.Hostname' is from the agent metrics (e.g. "MyServer")
-			// We use EqualFold for case-insensitive comparison
-			if strings.EqualFold(registered.Hostname, disc.Instance) {
+			matchName := strings.EqualFold(registered.Hostname, disc.Instance)
+			log.Printf("    Name Check: '%s' vs '%s' => Match? %v", registered.Hostname, disc.Instance, matchName)
+			
+			if matchName {
+				log.Printf("    => MATCH FOUND by Name!")
 				isRegistered = true
 				break
 			}
 
-			// 2. Check if any IP matches (Fallback check)
-			// This catches cases where hostname might differ slightly but IPs match exactly
+			// 2. Check if any IP matches (Fallback)
+			matchIP := false
 			for _, ip := range disc.IPs {
 				if registered.IPAddress == ip && registered.Port == disc.Port {
-					isRegistered = true
+					matchIP = true
+					log.Printf("    IP Check: %s == %s AND Port %d == %d => MATCH!", registered.IPAddress, ip, registered.Port, disc.Port)
 					break
+				} else {
+					// Verbose log for non-matching IPs
+					// log.Printf("    IP Check: %s != %s OR Port %d != %d", registered.IPAddress, ip, registered.Port, disc.Port)
 				}
 			}
-			if isRegistered {
+
+			if matchIP {
+				log.Printf("    => MATCH FOUND by IP/Port!")
+				isRegistered = true
 				break
 			}
 		}
 		
 		if !isRegistered {
+			log.Printf("  => Result: NEW AGENT (Not found in store)")
 			newAgents = append(newAgents, disc)
+		} else {
+			log.Printf("  => Result: EXISTING AGENT (Ignored)")
 		}
 	}
 
-	log.Printf("Returning %d new agents (filtered %d already registered)", len(newAgents), len(discovered)-len(newAgents))
+	log.Printf("Discovery Complete. Returning %d new agents.", len(newAgents))
 	s.respondJSON(w, http.StatusOK, newAgents)
 }
 
