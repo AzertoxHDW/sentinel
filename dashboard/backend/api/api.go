@@ -178,19 +178,24 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 
 	// Get already registered agents
 	registeredAgents := s.store.GetAllAgents()
-	log.Printf("DEBUG: Registered agents: %+v", registeredAgents) // DEBUG
 	
 	// Filter out already registered agents
 	var newAgents []*discovery.DiscoveredAgent
 	for _, disc := range discovered {
-		log.Printf("DEBUG: Checking discovered agent - IPs: %v, Port: %d", disc.IPs, disc.Port) // DEBUG
 		isRegistered := false
 		
-		// Check if any IP matches a registered agent
+		// Check against registered agents
 		for _, registered := range registeredAgents {
-			log.Printf("DEBUG: Comparing with registered - IP: %s, Port: %d", registered.IPAddress, registered.Port) // DEBUG
+			// 1. Check if Hostname matches (Primary ID check)
+			// 'disc.Instance' usually contains the pure hostname (e.g. "my-server")
+			// 'registered.Hostname' also contains the hostname.
+			if registered.Hostname == disc.Instance {
+				isRegistered = true
+				break
+			}
+
+			// 2. Check if any IP matches (Fallback)
 			for _, ip := range disc.IPs {
-				log.Printf("DEBUG: MATCH FOUND! Filtering out %s:%d", ip, disc.Port) // DEBUG
 				if registered.IPAddress == ip && registered.Port == disc.Port {
 					isRegistered = true
 					break
@@ -202,7 +207,6 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		if !isRegistered {
-			log.Printf("DEBUG: Agent not registered, adding to results") // DEBUG
 			newAgents = append(newAgents, disc)
 		}
 	}
