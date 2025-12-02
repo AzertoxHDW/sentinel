@@ -26,11 +26,17 @@ func main() {
 	
 	flag.Parse()
 
-	if *influxToken == "" {
+	finalInfluxToken := *influxToken // Start with the flag value (if set in command)
+	
+	// Explicitly check the environment variable INFLUX_TOKEN
+	if envToken, exists := os.LookupEnv("INFLUX_TOKEN"); exists && envToken != "" {
+		// Use the environment variable, overriding the flag if both are set
+		finalInfluxToken = envToken 
+	}
+	
+	if finalInfluxToken == "" {
 		log.Fatal("InfluxDB token is required. Use -influx-token flag or set INFLUX_TOKEN env var")
 	}
-
-	log.Println("Starting Sentinel Dashboard...")
 
 	// Initialize storage
 	store, err := storage.NewStore(*dataFile)
@@ -41,7 +47,7 @@ func main() {
 	// Initialize InfluxDB
 	influxDB := storage.NewInfluxDB(storage.InfluxConfig{
 		URL:    *influxURL,
-		Token:  *influxToken,
+		Token:  finalInfluxToken,
 		Org:    *influxOrg,
 		Bucket: *influxBucket,
 	})

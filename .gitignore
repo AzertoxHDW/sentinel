@@ -48,5 +48,4 @@ tmp/
 temp/
 *.tmp
 influx.conf
-*.conf
 agents.json
