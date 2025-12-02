@@ -21,7 +21,7 @@
   async function fetchData() {
     try {
       const response = await fetch(
-        `http://localhost:8080/api/history/${agentId}/network?duration=1h`
+        `/api/history/${agentId}/network?duration=1h`
       );
       const data = await response.json();
 
