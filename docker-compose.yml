@@ -30,12 +30,12 @@ services:
     container_name: sentinel-dashboard
     network_mode: "host" 
     environment:
-      - INFLUX_URL=http://localhost:8086 
+      - INFLUX_URL=http://host.docker.internal:8086 
       - INFLUX_TOKEN=sentinel-super-secret-token-change-me-in-production
       - INFLUX_ORG=sentinel
       - INFLUX_BUCKET=metrics
     command: [
-      "-influx-url=http://localhost:8086", 
+      "-influx-url=http://host.docker.internal:8086", 
       "-influx-token=sentinel-super-secret-token-change-me-in-production",
       "-influx-org=sentinel",
       "-influx-bucket=metrics"
