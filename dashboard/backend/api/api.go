@@ -167,15 +167,43 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Scanning network for Sentinel agents...")
 
-	agents, err := s.scanner.Scan(3 * time.Second)
+	discovered, err := s.scanner.Scan(3 * time.Second)
 	if err != nil {
 		log.Printf("Discovery error: %v", err)
 		s.respondError(w, http.StatusInternalServerError, "Discovery failed")
 		return
 	}
 
-	log.Printf("Found %d agents", len(agents))
-	s.respondJSON(w, http.StatusOK, agents)
+	log.Printf("Found %d agents via mDNS", len(discovered))
+
+	// Get already registered agents
+	registeredAgents := s.store.GetAllAgents()
+	
+	// Filter out already registered agents
+	var newAgents []*discovery.DiscoveredAgent
+	for _, disc := range discovered {
+		isRegistered := false
+		
+		// Check if any IP matches a registered agent
+		for _, registered := range registeredAgents {
+			for _, ip := range disc.IPs {
+				if registered.IPAddress == ip && registered.Port == disc.Port {
+					isRegistered = true
+					break
+				}
+			}
+			if isRegistered {
+				break
+			}
+		}
+		
+		if !isRegistered {
+			newAgents = append(newAgents, disc)
+		}
+	}
+
+	log.Printf("Returning %d new agents (filtered %d already registered)", len(newAgents), len(discovered)-len(newAgents))
+	s.respondJSON(w, http.StatusOK, newAgents)
 }
 
 // GET /api/metrics/{agentID} - Proxy metrics from agent
