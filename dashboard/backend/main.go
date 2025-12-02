@@ -19,7 +19,7 @@ func main() {
 	collectInterval := flag.Duration("interval", 30*time.Second, "Metrics collection interval")
 	
 	// InfluxDB config
-	influxURL := flag.String("influx-url", "http://host.docker.internal:8086", "InfluxDB URL")
+	influxURL := flag.String("influx-url", "http://localhost:8086", "InfluxDB URL")
 	influxToken := flag.String("influx-token", "", "InfluxDB token")
 	influxOrg := flag.String("influx-org", "sentinel", "InfluxDB organization")
 	influxBucket := flag.String("influx-bucket", "metrics", "InfluxDB bucket")
