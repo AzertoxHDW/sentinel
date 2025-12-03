@@ -48,3 +48,4 @@ temp/
 *.tmp
 influx.conf
 agents.json
+docker-compose-dev.yml
