@@ -1,7 +1,6 @@
 # Binaries
 sentinel-agent
 sentinel-dashboard
-*.exe
 *.dll
 *.so
 *.dylib

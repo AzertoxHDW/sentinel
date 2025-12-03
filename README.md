@@ -8,9 +8,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://hub.docker.com/r/azertoxhdw/sentinel)
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8.svg)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/Go-1.25.4-00ADD8.svg)](https://golang.org/)
 
-[Features](#features) • [Quick Start](#quick-start) • [Docker Deployment](#docker-deployment) • [Manual Installation](#manual-installation) • [Documentation](#documentation)
+[Features](#key-features) • [Quick Start](#quick-start) • [Docker Deployment](#deploy-the-server) • [Agent Installation](#agent-installation) • [Manual Installation](#manual-installation) • [Configuration](#configuration) • [Troubleshooting](#troubleshooting)
 
 </div>
 
@@ -30,24 +30,8 @@ Sentinel is a lightweight, self-hosted infrastructure monitoring solution design
 - 🚀 **Lightweight** - Minimal resource footprint on monitored systems
 - 🔒 **Self-Hosted** - Your data stays on your infrastructure
 
-## Architecture
 
-```
-┌─────────────┐     mDNS       ┌──────────────┐
-│   Agent 1   │◄──────────────►│              │
-└─────────────┘                │              │
-                               │  Dashboard   │──► InfluxDB
-┌─────────────┐     HTTP       │   Backend    │
-│   Agent 2   │◄──────────────►│              │
-└─────────────┘                │              │
-                               └──────────────┘
-┌─────────────┐                       │
-│   Agent N   │                       ▼
-└─────────────┘                ┌──────────────┐
-                               │   Frontend   │
-                               │   (Web UI)   │
-                               └──────────────┘
-```
+### What's included
 
 - **Agents** - Lightweight Go binaries running on monitored systems
 - **Dashboard Backend** - REST API, mDNS scanner, metrics collector
@@ -56,59 +40,59 @@ Sentinel is a lightweight, self-hosted infrastructure monitoring solution design
 
 ## Quick Start
 
-### Docker Deployment (Recommended)
+### Deploy the server:
 
-The fastest way to get Sentinel running:
+**1. Download the [docker compose file](https://github.com/AzertoxHDW/sentinel/blob/master/docker-compose.yml)**
 
-```bash
-# Clone the repository
-git clone https://github.com/AzertoxHDW/sentinel.git
-cd sentinel
+**2. Change the InfluxDB admin token to whatever you want**
 
-# Start the stack
-docker-compose up -d
-
-# Access the dashboard
-open http://localhost:3000
-```
+**3. Deploy the stack with the Compose file**
 
 That's it! The dashboard, API, and InfluxDB are now running.
 
-### Deploy Agents
+## Agent Installation
 
-Agents run on the systems you want to monitor. Download the latest release for your platform:
+### Quick Install (Linux/macOS):
+```bash
+curl -sSL https://raw.githubusercontent.com/AzertoxHDW/sentinel/main/install-agent.sh | sudo bash
+```
+
+### Manual Installation:
 
 **Linux (x64):**
 ```bash
 wget https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-linux-amd64
 chmod +x sentinel-agent-linux-amd64
-./sentinel-agent-linux-amd64
+sudo mv sentinel-agent-linux-amd64 /usr/local/bin/sentinel-agent
+sudo sentinel-agent
 ```
 
-**Linux (ARM64 - Raspberry Pi):**
+**Raspberry Pi (ARM64):**
 ```bash
 wget https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-linux-arm64
 chmod +x sentinel-agent-linux-arm64
-./sentinel-agent-linux-arm64
+sudo mv sentinel-agent-linux-arm64 /usr/local/bin/sentinel-agent
+sudo sentinel-agent
 ```
 
 **Windows:**
-```powershell
-# Download from releases page
-.\sentinel-agent-windows-amd64.exe
-```
+1. Download [sentinel-agent-windows-amd64.exe](https://github.com/AzertoxHDW/sentinel/releases/latest)
+2. Run as Administrator
+3. Add to Windows Firewall exceptions for port 9100
 
 **macOS:**
 ```bash
-# Intel
-wget https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-darwin-amd64
-chmod +x sentinel-agent-darwin-amd64
-./sentinel-agent-darwin-amd64
+wget https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-darwin-arm64  # Apple Silicon
+# or
+wget https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-darwin-amd64  # Intel
+chmod +x sentinel-agent-darwin-*
+sudo mv sentinel-agent-darwin-* /usr/local/bin/sentinel-agent
+sudo sentinel-agent
+```
 
-# Apple Silicon
-wget https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-darwin-arm64
-chmod +x sentinel-agent-darwin-arm64
-./sentinel-agent-darwin-arm64
+### Uninstall
+```bash
+curl -sSL https://raw.githubusercontent.com/AzertoxHDW/sentinel/main/uninstall-agent.sh | sudo bash
 ```
 
 Agents will automatically:
@@ -120,7 +104,7 @@ Agents will automatically:
 
 ### Prerequisites
 
-- Go 1.21 or higher
+- Go 1.25.4 or higher
 - Node.js 20+
 - InfluxDB 2.x
 - (Optional) Avahi/mDNS daemon for service discovery
@@ -144,7 +128,7 @@ npm install
 npm run build
 ```
 
-### Configuration
+### Configure the stack
 
 **InfluxDB Setup:**
 
@@ -220,6 +204,8 @@ services:
     ports:
       - "8080:80"  # Change from 3000 to 8080
 ```
+### **ATTENTION:**
+**The stack has been optimized to run in Docker containers, so the network and ports configuration is set for this use case out-of-the-box. Change the network configuration at your own risks, and if you don't know exactly what you're doing... just don't.**
 
 ## Metrics Collected
 
@@ -269,7 +255,8 @@ avahi-browse -t _sentinel._tcp
 ```
 
 **Firewall Issues:**
-- Ensure port 9100 (agent) is open
+- Ensure port 9100 is open agent-side
+- Ensure port 8080 is open server-side
 - Allow mDNS traffic (UDP 5353)
 
 **Manual Addition:**
@@ -283,21 +270,13 @@ curl -X POST http://localhost:8080/api/agents \
 ### Dashboard Can't Connect to InfluxDB
 
 **Check InfluxDB Status:**
-```bash
-docker-compose logs influxdb
-```
+- Verify the container is running (`docker ps`)
+- Check the container logs
 
 **Verify Token:**
-- Log into InfluxDB UI at http://localhost:8086
+- Log into InfluxDB UI at `http://<influxdb-ip>:8086`
 - Go to Settings → Tokens
 - Ensure token matches docker-compose.yml
-
-### High Memory Usage
-
-Agents use ~10-20MB RAM. If higher:
-- Check for memory leaks
-- Reduce collection interval
-- Update to latest version
 
 ## Development
 
@@ -323,26 +302,6 @@ sentinel/
 └── README.md
 ```
 
-### Building
-
-```bash
-# Agent
-go build -o sentinel-agent ./agent
-
-# Dashboard
-go build -o sentinel-dashboard ./dashboard/backend
-
-# Frontend
-cd dashboard/frontend
-npm run build
-```
-
-### Running Tests
-
-```bash
-go test ./...
-```
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -355,12 +314,12 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ## Acknowledgments
 
 - Built with [Go](https://golang.org/)
-- UI powered by [Svelte](https://svelte.dev/) and [Tailwind CSS](https://tailwindcss.com/)
+- UI powered by [Svelte](https://svelte.dev/) and [TailwindCSS](https://tailwindcss.com/)
 - Time-series storage by [InfluxDB](https://www.influxdata.com/)
 - Charts by [Chart.js](https://www.chartjs.org/)
 - Icons from [Heroicons](https://heroicons.com/)
