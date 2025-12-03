@@ -159,6 +159,7 @@
       <div>
         <div class="flex items-center gap-3 mb-2">
           {#if view === 'detail'}
+            <!-- svelte-ignore a11y_consider_explicit_label -->
             <button 
               on:click={backToOverview}
               class="p-2 hover:bg-gray-800 rounded-lg transition-colors"
@@ -168,7 +169,7 @@
               </svg>
             </button>
           {/if}
-          <h1 class="text-3xl font-semibold tracking-tight">Sentinel - Beta2</h1>
+          <h1 class="text-3xl font-mono tracking-tight">SENTINEL</h1>
         </div>
         <p class="text-sm text-gray-500">Infrastructure monitoring</p>
       </div>
@@ -196,10 +197,13 @@
 
     <!-- Discovery Modal -->
     {#if showDiscoveryModal}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" on:click={closeModal}>
     <div class="bg-[#0d0d0d] rounded-2xl p-6 max-w-2xl w-full border border-gray-800" on:click|stopPropagation>
       <div class="flex items-center justify-between mb-6">
         <h3 class="text-lg font-medium">Discovered Agents</h3>
+        <!-- svelte-ignore a11y_consider_explicit_label -->
         <button on:click={closeModal} class="p-2 hover:bg-gray-800 rounded-lg transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -289,7 +293,7 @@
         <div class="bg-[#0d0d0d] rounded-2xl p-6 border border-gray-800">
           <div class="flex items-start justify-between">
             <div>
-              <h2 class="text-2xl font-medium mb-1">{metrics.hostname}</h2>
+              <h2 class="text-2xl font-medium mb-1 uppercase">{metrics.hostname}</h2>
               <p class="text-sm text-gray-500">Uptime: {formatUptime(metrics.uptime)}</p>
             </div>
             <button

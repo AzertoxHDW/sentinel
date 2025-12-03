@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Agent, SystemMetrics } from '../api';
-  import { formatBytes } from '../utils';
+  import { formatBytes, formatBytesRounded } from '../utils';
   import Gauge from './Gauge.svelte';
 
   export let agent: Agent;
@@ -56,8 +56,8 @@
     <!-- Header -->
     <div class="flex items-start justify-between mb-6">
       <div>
-        <h3 class="text-lg font-medium tracking-tight">{agent.hostname}</h3>
-        <p class="text-sm text-gray-500 font-mono mt-0.5">{agent.ip_address}:{agent.port}</p>
+        <h3 class="text-lg font-medium tracking-tight uppercase">{agent.hostname}</h3>
+        <p class="text-sm text-gray-500 font-mono mt-0.5">{agent.ip_address}</p>
       </div>
       
       <!-- Status -->
@@ -97,7 +97,7 @@
           <div class="flex items-center justify-between">
             <span class="text-gray-500">RAM</span>
             <span class="text-gray-400 font-mono">
-              {formatBytes(metrics.memory.total)}
+              {formatBytesRounded(metrics.memory.total)}
             </span>
           </div>
 
@@ -106,7 +106,7 @@
             <div class="flex items-center justify-between">
               <span class="text-gray-500">Storage</span>
               <span class="text-gray-400 font-mono">
-                {formatBytes(totalDiskCapacity)}
+                {formatBytesRounded(totalDiskCapacity)}
               </span>
             </div>
           {/if}

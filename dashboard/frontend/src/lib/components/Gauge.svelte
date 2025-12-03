@@ -37,11 +37,11 @@
     </svg>
 
     <!-- Center value -->
-    <div class="absolute inset-x-0 bottom-2 flex flex-col items-center">
+    <div class="absolute inset-x-0 bottom-2 flex items-baseline justify-center gap-1">
       <div class="text-3xl font-mono font-medium" style="color: {color}">
         {value.toFixed(0)}
       </div>
-      <div class="text-xs text-gray-500 mt-0.5">%</div>
+      <div class="text-sm text-gray-500">%</div>
     </div>
   </div>
 </div>
