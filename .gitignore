@@ -1,7 +1,6 @@
 # Binaries
 sentinel-agent
 sentinel-dashboard
-*.exe
 *.dll
 *.so
 *.dylib
@@ -48,5 +47,4 @@ tmp/
 temp/
 *.tmp
 influx.conf
-*.conf
 agents.json

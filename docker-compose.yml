@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  influxdb:
+    image: influxdb:2
+    container_name: sentinel-influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=sentinel
+      - DOCKER_INFLUXDB_INIT_PASSWORD=sentinelpassword
+      - DOCKER_INFLUXDB_INIT_ORG=sentinel
+      - DOCKER_INFLUXDB_INIT_BUCKET=metrics
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=sentinel-super-secret-token-change-me-in-production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  dashboard-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: sentinel-dashboard
+    network_mode: "host" 
+    environment:
+      - INFLUX_URL=http://localhost:8086 
+      - INFLUX_TOKEN=sentinel-super-secret-token-change-me-in-production
+      - INFLUX_ORG=sentinel
+      - INFLUX_BUCKET=metrics
+    command: [
+      "-influx-url=http://localhost:8086", 
+      "-influx-token=sentinel-super-secret-token-change-me-in-production",
+      "-influx-org=sentinel",
+      "-influx-bucket=metrics"
+    ]
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    volumes:
+      - agents-data:/app
+    restart: unless-stopped
+
+  dashboard-frontend:
+    build:
+      context: ./dashboard/frontend
+      dockerfile: Dockerfile
+    container_name: sentinel-frontend
+    ports:
+      - "3000:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - dashboard-backend
+    restart: unless-stopped
+
+networks:
+  sentinel-network:
+    driver: bridge
+
+volumes:
+  influxdb-data:
+  influxdb-config:
+  agents-data:

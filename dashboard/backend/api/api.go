@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"sentinel/dashboard/backend/discovery"
-	"sentinel/dashboard/backend/storage"
+	"github.com/AzertoxHDW/sentinel/dashboard/backend/discovery"
+	"github.com/AzertoxHDW/sentinel/dashboard/backend/storage"
 )
 
 type Server struct {
@@ -71,6 +71,18 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// Helper to normalize hostnames for comparison
+// Removes trailing dots, converts to lowercase, and removes domain suffixes
+// Example: "MyServer.local." -> "myserver"
+func normalizeHostname(h string) string {
+	h = strings.ToLower(strings.TrimSpace(h))
+	h = strings.TrimSuffix(h, ".")
+	if idx := strings.Index(h, "."); idx != -1 {
+		return h[:idx]
+	}
+	return h
 }
 
 // GET /api/agents - List all agents
@@ -165,17 +177,59 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Scanning network for Sentinel agents...")
-
-	agents, err := s.scanner.Scan(3 * time.Second)
+	discovered, err := s.scanner.Scan(3 * time.Second)
 	if err != nil {
-		log.Printf("Discovery error: %v", err)
+		log.Printf("ERROR: Discovery failed: %v", err)
 		s.respondError(w, http.StatusInternalServerError, "Discovery failed")
 		return
 	}
 
-	log.Printf("Found %d agents", len(agents))
-	s.respondJSON(w, http.StatusOK, agents)
+	log.Printf("Scanner found %d raw agents via mDNS", len(discovered))
+
+	// Get already registered agents
+	registeredAgents := s.store.GetAllAgents()
+	
+	// Filter out already registered agents
+	var newAgents []*discovery.DiscoveredAgent
+	for _, disc := range discovered {
+		// Normalize discovered names for comparison
+		discInstanceNorm := normalizeHostname(disc.Instance)
+		discHostnameNorm := normalizeHostname(disc.Hostname)
+
+		log.Printf("checking discovered agent: Instance='%s' (norm: '%s'), Hostname='%s' (norm: '%s'), IPs=%v", 
+			disc.Instance, discInstanceNorm, disc.Hostname, discHostnameNorm, disc.IPs)
+
+		isRegistered := false
+		
+		for _, registered := range registeredAgents {
+			regHostnameNorm := normalizeHostname(registered.Hostname)
+
+			// 1. Check if Hostname matches (Primary ID check with normalization)
+			// Checks if "myserver" == "myserver" OR "myserver" == "myserver.local"
+			if regHostnameNorm == discInstanceNorm || regHostnameNorm == discHostnameNorm {
+				isRegistered = true
+				break
+			}
+
+			// 2. Check if any IP matches (Fallback)
+			for _, ip := range disc.IPs {
+				if registered.IPAddress == ip && registered.Port == disc.Port {
+					isRegistered = true
+					break
+				}
+			}
+			if isRegistered {
+				break
+			}
+		}
+		
+		if !isRegistered {
+			newAgents = append(newAgents, disc)
+		} else {
+		}
+	}
+
+	s.respondJSON(w, http.StatusOK, newAgents)
 }
 
 // GET /api/metrics/{agentID} - Proxy metrics from agent
