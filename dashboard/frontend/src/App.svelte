@@ -17,11 +17,18 @@
   let view: 'overview' | 'detail' = 'overview';
   let lastUpdateTime: number = Date.now();
   let addingAgentId: string | null = null
+  let isLoadingMetrics = false;
 
   onMount(async () => {
     await loadAgents();
     
     const interval = setInterval(async () => {
+      // Prevent overlapping requests
+      if (isLoadingMetrics) {
+        console.log('Skipping metrics refresh - previous request still in progress');
+        return;
+      }
+      
       if (view === 'overview') {
         await loadAllAgentMetrics();
       } else if (selectedAgent) {
@@ -44,31 +51,74 @@
   }
 
   async function loadAllAgentMetrics() {
-    for (const agent of agents) {
-      try {
-        const m = await api.getMetrics(agent.id);
-        agentMetrics.set(agent.id, m);
-      } catch (error) {
-        console.error(`Failed to load metrics for ${agent.id}:`, error);
-      }
+    if (isLoadingMetrics) return;  // Prevent concurrent requests
+    
+    isLoadingMetrics = true;
+    
+    try {
+      // Load all metrics in parallel with individual timeouts
+      const promises = agents.map(async (agent) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        try {
+          const response = await fetch(`/api/metrics/${agent.id}`, {
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            const m = await response.json();
+            agentMetrics.set(agent.id, m);
+          } else {
+            agentMetrics.delete(agent.id);
+          }
+        } catch (error) {
+          clearTimeout(timeoutId);
+          console.error(`Metrics fetch failed for ${agent.id}:`, error.name);
+          agentMetrics.delete(agent.id);
+        }
+      });
+      
+      await Promise.allSettled(promises);
+      agentMetrics = agentMetrics; // Trigger reactivity
+    } finally {
+      isLoadingMetrics = false;
     }
-    agentMetrics = agentMetrics;
   }
 
   async function loadMetrics(agentId: string) {
+    if (isLoadingMetrics) return;
+    
+    isLoadingMetrics = true;
+    
     try {
-      const newMetrics = await api.getMetrics(agentId);
-      const now = Date.now();
-      const timeDiff = (now - lastUpdateTime) / 1000; // seconds
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      
+      const response = await fetch(`/api/metrics/${agentId}`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const newMetrics = await response.json();
+        const now = Date.now();
+        const timeDiff = (now - lastUpdateTime) / 1000;
 
-      if (metrics && timeDiff > 0) {
-        previousMetrics = metrics;
+        if (metrics && timeDiff > 0) {
+          previousMetrics = metrics;
+        }
+
+        metrics = newMetrics;
+        lastUpdateTime = now;
       }
-
-      metrics = newMetrics;
-      lastUpdateTime = now;
     } catch (error) {
       console.error('Failed to load metrics:', error);
+    } finally {
+      isLoadingMetrics = false;
     }
   }
 
@@ -123,11 +173,13 @@
     }
   }
 
-  function selectAgent(agent: Agent) {
-    selectedAgent = agent;
-    view = 'detail';
-    loadMetrics(agent.id);
-  }
+function selectAgent(agent: Agent) {
+  selectedAgent = agent;
+  view = 'detail';
+  metrics = null;  // Clear metrics immediately when switching
+  previousMetrics = null;  // Clear previous metrics too
+  loadMetrics(agent.id);
+}
 
   function backToOverview() {
     view = 'overview';
@@ -286,24 +338,30 @@
     {/if}
 
     <!-- DETAIL VIEW -->
-    {#if view === 'detail' && metrics && selectedAgent}
-      <div class="space-y-6">
-        
-        <!-- Header Card -->
-        <div class="bg-[#0d0d0d] rounded-2xl p-6 border border-gray-800">
-          <div class="flex items-start justify-between">
-            <div>
-              <h2 class="text-2xl font-medium mb-1 uppercase">{metrics.hostname}</h2>
-              <p class="text-sm text-gray-500">Uptime: {formatUptime(metrics.uptime)}</p>
-            </div>
-            <button
-              on:click={() => deleteAgent(selectedAgent.id)}
-              class="px-4 py-2 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
-            >
-              Remove
-            </button>
-          </div>
+    {#if view === 'detail' && selectedAgent}
+  <div class="space-y-6">
+    
+    <!-- Header Card -->
+    <div class="bg-[#0d0d0d] rounded-2xl p-6 border border-gray-800">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-2xl font-medium mb-1">{selectedAgent.hostname}</h2>
+          {#if metrics}
+            <p class="text-sm text-gray-500">Uptime: {formatUptime(metrics.uptime)}</p>
+          {:else}
+            <p class="text-sm text-red-400">Offline - No metrics available</p>
+          {/if}
         </div>
+        <button
+          on:click={() => deleteAgent(selectedAgent.id)}
+          class="px-4 py-2 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+
+    {#if metrics}
 
         <!-- Charts CPU & RAM -->
         <div class="bg-[#0d0d0d] rounded-2xl p-6 border border-gray-800">
@@ -443,7 +501,24 @@
         </div>
       </div>
     {/if}
+    {:else}
+      <!-- Offline State -->
+      <div class="bg-[#0d0d0d] rounded-2xl p-12 border border-gray-800 text-center">
+        <svg class="w-16 h-16 mx-auto text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+        </svg>
+        <h3 class="text-xl font-medium mb-2">Agent Offline</h3>
+        <p class="text-gray-500 mb-4">Unable to connect to {selectedAgent.hostname}</p>
+        <button 
+          on:click={() => loadMetrics(selectedAgent.id)}
+          class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-medium rounded-lg transition-colors"
+        >
+          Retry Connection
+        </button>
       </div>
     {/if}
+    
+  </div>
+{/if}
   </div>
 </main>

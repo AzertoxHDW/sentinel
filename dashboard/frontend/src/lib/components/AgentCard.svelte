@@ -8,6 +8,7 @@
   export let onClick: () => void;
   export let onDelete: () => void;
 
+  $: isOnline = metrics !== null && metrics !== undefined;
   $: cpuWarning = metrics && metrics.cpu.usage_percent > 85;
   $: memWarning = metrics && metrics.memory.used_percent > 85;
   $: diskWarning = metrics && metrics.disk.some(d => d.used_percent > 90);
@@ -46,7 +47,7 @@
   <button
     on:click={onClick}
     class="relative w-full text-left p-6 rounded-2xl border transition-all duration-300 {
-      agent.status === 'offline' 
+      !isOnline
         ? 'border-red-950 bg-red-950/20 hover:bg-red-950/30' 
         : hasWarnings
         ? 'border-amber-900/30 bg-amber-950/10 hover:border-amber-800/50 hover:bg-amber-950/20'
@@ -62,18 +63,25 @@
       
       <!-- Status -->
       <div class="flex items-center gap-2">
-        {#if agent.status === 'online'}
+        {#if isOnline}
           <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-          <span class="text-xs text-gray-500">online</span>
+          <span class="text-xs text-emerald-400">online</span>
         {:else}
           <div class="w-2 h-2 rounded-full bg-red-500"></div>
-          <span class="text-xs text-gray-500">offline</span>
+          <span class="text-xs text-red-400">offline</span>
         {/if}
       </div>
     </div>
 
-    {#if agent.status === 'offline'}
-      <div class="text-sm text-red-400/80">No data available</div>
+    {#if !isOnline}
+      <!-- Offline State -->
+      <div class="py-8 text-center">
+        <svg class="w-12 h-12 mx-auto text-gray-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+        </svg>
+        <p class="text-sm text-red-400/80">Agent offline</p>
+        <p class="text-xs text-gray-600 mt-1">Click to view details</p>
+      </div>
     {:else if metrics}
       <!-- Metrics -->
       <div class="space-y-6">
@@ -135,8 +143,6 @@
         <span class="text-xs text-gray-500">{metrics.cpu.core_count} cores</span>
         <span class="text-xs text-gray-500">View details →</span>
       </div>
-    {:else}
-      <div class="text-sm text-gray-500">Loading...</div>
     {/if}
   </button>
 

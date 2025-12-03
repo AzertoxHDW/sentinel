@@ -51,37 +51,55 @@ export interface SystemMetrics {
   }>;
 }
 
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 5000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
 export const api = {
   async getAgents(): Promise<Agent[]> {
-    const res = await fetch(`${API_BASE}/agents`);
-    return res.json();
+    const response = await fetchWithTimeout(`${API_BASE}/agents`);
+    return response.json();
   },
 
-  async addAgent(agent: Omit<Agent, 'id' | 'added_at' | 'last_seen' | 'status'>): Promise<Agent> {
-    const res = await fetch(`${API_BASE}/agents`, {
+  async addAgent(agent: { ip_address: string; port: number; hostname: string }): Promise<void> {
+    await fetchWithTimeout(`${API_BASE}/agents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(agent),
     });
-    return res.json();
   },
 
   async removeAgent(id: string): Promise<void> {
-    await fetch(`${API_BASE}/agents/${id}`, { method: 'DELETE' });
+    await fetchWithTimeout(`${API_BASE}/agents/${id}`, {
+      method: 'DELETE',
+    });
   },
 
   async discoverAgents(): Promise<DiscoveredAgent[]> {
-    const res = await fetch(`${API_BASE}/agents/discover`);
-    return res.json();
+    const response = await fetchWithTimeout(`${API_BASE}/agents/discover`);
+    return response.json();
   },
 
   async getMetrics(agentId: string): Promise<SystemMetrics> {
-    const res = await fetch(`${API_BASE}/metrics/${agentId}`);
-    return res.json();
+    const response = await fetchWithTimeout(`${API_BASE}/metrics/${agentId}`, {}, 3000);
+    return response.json();
   },
 
   async checkHealth(): Promise<{ status: string }> {
-    const res = await fetch(`${API_BASE}/health`);
-    return res.json();
+    const response = await fetchWithTimeout(`${API_BASE}/health`);
+    return response.json();
   },
 };
