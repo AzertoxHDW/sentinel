@@ -54,7 +54,7 @@ That's it! The dashboard, API, and InfluxDB are now running.
 
 ### Quick Install (Linux/macOS):
 ```bash
-curl -sSL https://raw.githubusercontent.com/AzertoxHDW/sentinel/main/install-agent.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/AzertoxHDW/sentinel/refs/heads/master/install-agent.sh | sudo bash
 ```
 
 ### Manual Installation:
@@ -76,7 +76,7 @@ sudo sentinel-agent
 ```
 
 **Windows:**
-1. Download [sentinel-agent-windows-amd64.exe](https://github.com/AzertoxHDW/sentinel/releases/latest)
+1. Download [sentinel-agent-windows-amd64.exe](https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-windows-amd64.exe)
 2. Run as Administrator
 3. Add to Windows Firewall exceptions for port 9100
 
@@ -92,7 +92,7 @@ sudo sentinel-agent
 
 ### Uninstall
 ```bash
-curl -sSL https://raw.githubusercontent.com/AzertoxHDW/sentinel/main/uninstall-agent.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/AzertoxHDW/sentinel/refs/heads/master/uninstall-agent.sh | sudo bash
 ```
 
 Agents will automatically:
@@ -108,6 +108,8 @@ Agents will automatically:
 - Node.js 20+
 - InfluxDB 2.x
 - (Optional) Avahi/mDNS daemon for service discovery
+
+**You will have to edit the code to modify the network configuration, since it hasn't been designed to run outside of Docker.**
 
 ### Build from Source
 
