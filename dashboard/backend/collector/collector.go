@@ -8,21 +8,24 @@ import (
 	"time"
 
 	"github.com/AzertoxHDW/sentinel/dashboard/backend/storage"
+	"github.com/AzertoxHDW/sentinel/dashboard/backend/alerts"
 )
 
 type MetricsCollector struct {
 	store      *storage.Store
 	influxDB   *storage.InfluxDB
+	alerter    *alerts.Alerter
 	httpClient *http.Client
 	interval   time.Duration
 	stopChan   chan struct{}
 }
 
-func NewMetricsCollector(store *storage.Store, influxDB *storage.InfluxDB, interval time.Duration) *MetricsCollector {
+func NewMetricsCollector(store *storage.Store, influxDB *storage.InfluxDB, interval time.Duration, alt *alerts.Alerter) *MetricsCollector {
 	return &MetricsCollector{
 		store:    store,
 		influxDB: influxDB,
 		interval: interval,
+		alerter:    alt,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
@@ -69,6 +72,10 @@ func (mc *MetricsCollector) collectAgent(agent *storage.Agent) error {
 	metricsURL := fmt.Sprintf("http://%s:%d/metrics", agent.IPAddress, agent.Port)
 	resp, err := mc.httpClient.Get(metricsURL)
 	if err != nil {
+		if agent.Status == "online" {
+			log.Printf("ALERT: Agent %s just went offline!", agent.Hostname)
+			mc.alerter.SendOfflineAlert(agent.Hostname, agent.ID)
+		}
 		mc.store.UpdateAgentStatus(agent.ID, "offline")
 		return err
 	}

@@ -34,6 +34,7 @@ services:
       - INFLUX_TOKEN=sentinel-super-secret-token-change-me-in-production
       - INFLUX_ORG=sentinel
       - INFLUX_BUCKET=metrics
+      - ALERT_WEBHOOK=
     command: [
       "-influx-url=http://localhost:8086", 
       "-influx-token=sentinel-super-secret-token-change-me-in-production",

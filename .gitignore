@@ -49,3 +49,4 @@ temp/
 influx.conf
 agents.json
 docker-compose-dev.yml
+DOCKER.md

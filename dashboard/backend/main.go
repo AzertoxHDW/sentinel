@@ -11,12 +11,15 @@ import (
 	"github.com/AzertoxHDW/sentinel/dashboard/backend/api"
 	"github.com/AzertoxHDW/sentinel/dashboard/backend/collector"
 	"github.com/AzertoxHDW/sentinel/dashboard/backend/storage"
+	"github.com/AzertoxHDW/sentinel/dashboard/backend/alerts"
 )
 
 func main() {
 	port := flag.String("port", "8080", "Port to listen on")
 	dataFile := flag.String("data", "agents.json", "Agent storage file")
 	collectInterval := flag.Duration("interval", 30*time.Second, "Metrics collection interval")
+	webhookURL := flag.String("alert-webhook", "", "Discord/Slack Webhook URL for alerts")
+    flag.Parse()
 	
 	// InfluxDB config
 	influxURL := flag.String("influx-url", "http://localhost:8086", "InfluxDB URL")
@@ -53,8 +56,11 @@ func main() {
 	})
 	defer influxDB.Close()
 
+	// Initialize Alerts
+    alerter := alerts.NewAlerter(*webhookURL)
+
 	// Start metrics collector
-	metricsCollector := collector.NewMetricsCollector(store, influxDB, *collectInterval)
+	metricsCollector := collector.NewMetricsCollector(store, influxDB, *collectInterval, alerter)
 	metricsCollector.Start()
 	defer metricsCollector.Stop()
 
