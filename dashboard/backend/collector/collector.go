@@ -8,25 +8,30 @@ import (
 	"time"
 
 	"github.com/AzertoxHDW/sentinel/dashboard/backend/storage"
+	"github.com/AzertoxHDW/sentinel/dashboard/backend/alerts"
 )
 
 type MetricsCollector struct {
 	store      *storage.Store
 	influxDB   *storage.InfluxDB
+	alerter    *alerts.Alerter
 	httpClient *http.Client
 	interval   time.Duration
 	stopChan   chan struct{}
+	failureStates   map[string]bool
 }
 
-func NewMetricsCollector(store *storage.Store, influxDB *storage.InfluxDB, interval time.Duration) *MetricsCollector {
+func NewMetricsCollector(store *storage.Store, influxDB *storage.InfluxDB, interval time.Duration, alt *alerts.Alerter) *MetricsCollector {
 	return &MetricsCollector{
 		store:    store,
 		influxDB: influxDB,
 		interval: interval,
+		alerter:    alt,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
 		stopChan: make(chan struct{}),
+		failureStates: make(map[string]bool),
 	}
 }
 
@@ -56,10 +61,23 @@ func (mc *MetricsCollector) Stop() {
 
 func (mc *MetricsCollector) collectAll() {
 	agents := mc.store.GetAllAgents()
-	
+	alertConfig := mc.store.GetAlertConfig()
 	for _, agent := range agents {
-		if err := mc.collectAgent(agent); err != nil {
-			log.Printf("Failed to collect metrics for %s: %v", agent.ID, err)
+		err := mc.collectAgent(agent)
+		if err != nil {
+			if !mc.failureStates[agent.ID] {
+				log.Printf("⚠️ STATE CHANGE: %s transitioned from ONLINE -> OFFLINE", agent.Hostname)
+				mc.alerter.SendOfflineAlert(agent.Hostname, agent.ID, alertConfig)
+				mc.failureStates[agent.ID] = true
+			}
+			mc.store.UpdateAgentStatus(agent.ID, "offline")
+		} else {
+			if mc.failureStates[agent.ID] {
+                log.Printf("✅ STATE CHANGE: %s transitioned from OFFLINE -> ONLINE", agent.Hostname)
+				mc.alerter.SendOnlineAlert(agent.Hostname, agent.ID, alertConfig)
+				mc.failureStates[agent.ID] = false
+			}
+			mc.store.UpdateAgentStatus(agent.ID, "online")
 		}
 	}
 }

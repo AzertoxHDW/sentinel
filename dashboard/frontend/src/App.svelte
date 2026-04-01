@@ -18,6 +18,9 @@
   let lastUpdateTime: number = Date.now();
   let addingAgentId: string | null = null
   let isLoadingMetrics = false;
+  let showAlertSettings = false;
+  let alertConfig = { type: 'discord', webhook_url: '', ntfy_topic: '', ntfy_user: '', ntfy_pass: '', enabled: false };
+  let savingAlerts = false;
 
   onMount(async () => {
     await loadAgents();
@@ -38,6 +41,40 @@
 
     return () => clearInterval(interval);
   });
+
+  async function loadAlertSettings() {
+  try {
+    const response = await fetch('/api/settings/alerts');
+    if (response.ok) {
+      alertConfig = await response.json();
+    }
+  } catch (error) {
+    console.error('Failed to load alert settings:', error);
+  }
+}
+
+async function saveAlertSettings() {
+  savingAlerts = true;
+  try {
+    const response = await fetch('/api/settings/alerts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(alertConfig)
+    });
+    if (response.ok) {
+      showAlertSettings = false;
+    }
+  } catch (error) {
+    console.error('Failed to save alert settings:', error);
+  } finally {
+    savingAlerts = false;
+  }
+}
+
+function openAlertSettings() {
+  loadAlertSettings();
+  showAlertSettings = true;
+}
 
   async function loadAgents() {
     try {
@@ -223,13 +260,22 @@ function selectAgent(agent: Agent) {
           {/if}
           <div class="flex items-baseline gap-3">
   <h1 class="text-3xl font-mono tracking-tight">SENTINEL</h1>
-  <span class="text-sm text-gray-500">v0.4-beta</span>
+  <span class="text-sm text-gray-500">v0.5</span>
 </div>
         </div>
         <p class="text-sm text-gray-500">Infrastructure monitoring</p>
       </div>
       
       <div class="flex items-center gap-3">
+      <button 
+    on:click={() => { loadAlertSettings(); showAlertSettings = true; }}
+    class="p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-emerald-400"
+    title="Alert Settings"
+  >
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+    </svg>
+  </button>
         <button 
           on:click={discoverAgents}
           disabled={loading}
@@ -302,6 +348,58 @@ function selectAgent(agent: Agent) {
           {/each}
         </div>
       {/if}
+    </div>
+  </div>
+{/if}
+{#if showAlertSettings}
+  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" on:click={() => showAlertSettings = false}>
+    <div class="bg-[#0d0d0d] rounded-2xl p-6 max-w-md w-full border border-gray-800" on:click|stopPropagation>
+      
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg font-medium">Alert Notifications</h3>
+        <button on:click={() => showAlertSettings = false} class="p-2 hover:bg-gray-800 rounded-lg transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex items-center justify-between p-3 bg-gray-900/50 rounded-xl border border-gray-800">
+          <span class="text-sm font-medium">Enable Alerts</span>
+          <input type="checkbox" bind:checked={alertConfig.enabled} class="w-5 h-5 accent-emerald-500" />
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-xs text-gray-500 uppercase tracking-wider">Provider</label>
+          <select bind:value={alertConfig.type} class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-emerald-500">
+            <option value="discord">Discord Webhook</option>
+            <option value="ntfy">ntfy.sh</option>
+          </select>
+        </div>
+
+        {#if alertConfig.type === 'discord'}
+          <div class="space-y-2">
+            <label class="text-xs text-gray-500 uppercase tracking-wider">Webhook URL</label>
+            <input bind:value={alertConfig.webhook_url} type="text" placeholder="https://discord.com/api/webhooks/..." class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2.5 text-sm outline-none focus:border-emerald-500 text-white" />
+          </div>
+        {:else if alertConfig.type === 'ntfy'}
+          <div class="space-y-2">
+            <label class="text-xs text-gray-500 uppercase tracking-wider">ntfy Topic URL</label>
+            <input bind:value={alertConfig.ntfy_topic} type="text" placeholder="https://ntfy.sh/your-topic" class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2.5 text-sm outline-none focus:border-emerald-500 text-white" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <input bind:value={alertConfig.ntfy_user} type="text" placeholder="User (Optional)" class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2 text-sm outline-none focus:border-emerald-500 text-white" />
+            <input bind:value={alertConfig.ntfy_pass} type="password" placeholder="Pass (Optional)" class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2 text-sm outline-none focus:border-emerald-500 text-white" />
+          </div>
+        {/if}
+
+        <button 
+          on:click={saveAlertSettings}
+          disabled={savingAlerts}
+          class="w-full mt-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-black font-medium rounded-lg transition-colors disabled:opacity-50"
+        >
+          {savingAlerts ? 'Saving...' : 'Save Configuration'}
+        </button>
+      </div>
     </div>
   </div>
 {/if}

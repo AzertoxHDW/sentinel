@@ -45,6 +45,8 @@ services:
         condition: service_healthy
     volumes:
       - agents-data:/app
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     restart: unless-stopped
 
   dashboard-frontend:

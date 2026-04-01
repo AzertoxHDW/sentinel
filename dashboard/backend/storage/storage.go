@@ -18,8 +18,18 @@ type Agent struct {
 	Status      string    `json:"status"` // online, offline, unknown
 }
 
+type AlertConfig struct {
+	Type        string `json:"type"` // "discord" or "ntfy"
+	WebhookURL  string `json:"webhook_url,omitempty"`
+	NtfyTopic   string `json:"ntfy_topic,omitempty"`
+	NtfyUser    string `json:"ntfy_user,omitempty"`
+	NtfyPass    string `json:"ntfy_pass,omitempty"`
+	Enabled     bool   `json:"enabled"`
+}
+
 type Store struct {
 	agents map[string]*Agent
+	alertConfig AlertConfig
 	mu     sync.RWMutex
 	file   string
 }
@@ -122,4 +132,17 @@ func (s *Store) save() error {
 	}
 
 	return os.WriteFile(s.file, data, 0644)
+}
+
+func (s *Store) GetAlertConfig() AlertConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.alertConfig
+}
+
+func (s *Store) SaveAlertConfig(config AlertConfig) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.alertConfig = config
+	return s.save() // This will now save alerts too
 }
