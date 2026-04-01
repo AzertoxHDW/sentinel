@@ -4,7 +4,7 @@
 
 ![Sentinel Logo](dashboard/frontend/public/sentinel-icon.svg)
 
-**Modern infrastructure monitoring with zero-config deployment**
+**Modern infrastructure monitoring with zero-config deployment and real-time alerting**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://hub.docker.com/r/azertoxhdw/sentinel)
@@ -61,7 +61,7 @@ curl -sSL https://raw.githubusercontent.com/AzertoxHDW/sentinel/refs/heads/maste
 
 **Linux (x64):**
 ```bash
-wget https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-linux-amd64
+wget https://github.com/AzertoxHDW/sentinel/releases/download/v0.4/sentinel-agent-linux-amd64
 chmod +x sentinel-agent-linux-amd64
 sudo mv sentinel-agent-linux-amd64 /usr/local/bin/sentinel-agent
 sudo sentinel-agent
@@ -69,22 +69,22 @@ sudo sentinel-agent
 
 **Raspberry Pi (ARM64):**
 ```bash
-wget https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-linux-arm64
+wget https://github.com/AzertoxHDW/sentinel/releases/download/v0.4/sentinel-agent-linux-arm64
 chmod +x sentinel-agent-linux-arm64
 sudo mv sentinel-agent-linux-arm64 /usr/local/bin/sentinel-agent
 sudo sentinel-agent
 ```
 
 **Windows:**
-1. Download [sentinel-agent-windows-amd64.exe](https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-windows-amd64.exe)
+1. Download [sentinel-agent-windows-amd64.exe](https://github.com/AzertoxHDW/sentinel/releases/download/v0.4/sentinel-agent-windows-amd64.exe)
 2. Run as Administrator
 3. Add to Windows Firewall exceptions for port 9100
 
 **macOS:**
 ```bash
-wget https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-darwin-arm64  # Apple Silicon
+wget https://github.com/AzertoxHDW/sentinel/releases/download/v0.4/sentinel-agent-darwin-arm64  # Apple Silicon
 # or
-wget https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-darwin-amd64  # Intel
+wget https://github.com/AzertoxHDW/sentinel/releases/download/v0.4/sentinel-agent-darwin-amd64  # Intel
 chmod +x sentinel-agent-darwin-*
 sudo mv sentinel-agent-darwin-* /usr/local/bin/sentinel-agent
 sudo sentinel-agent
@@ -279,30 +279,6 @@ curl -X POST http://localhost:8080/api/agents \
 - Log into InfluxDB UI at `http://<influxdb-ip>:8086`
 - Go to Settings → Tokens
 - Ensure token matches docker-compose.yml
-
-## Development
-
-### Project Structure
-
-```
-sentinel/
-├── agent/                  # Agent source code
-│   ├── main.go
-│   ├── collector/         # Metrics collection
-│   ├── server/            # HTTP server
-│   └── discovery/         # mDNS broadcasting
-├── dashboard/
-│   ├── backend/           # Dashboard API
-│   │   ├── main.go
-│   │   ├── api/
-│   │   ├── storage/
-│   │   └── collector/
-│   └── frontend/          # Web UI (Svelte)
-│       ├── src/
-│       └── public/
-├── docker-compose.yml
-└── README.md
-```
 
 ## Contributing
 

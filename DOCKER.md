@@ -30,7 +30,7 @@ Agents run on the machines you want to monitor. They are **NOT** containerized f
 ### Binary Installation
 ```bash
 # Download latest release
-wget https://github.com/AzertoxHDW/sentinel/releases/latest/download/sentinel-agent-linux-amd64
+wget https://github.com/AzertoxHDW/sentinel/releases/download/v0.4/sentinel-agent-linux-amd64
 
 # Make executable
 chmod +x sentinel-agent-linux-amd64
@@ -91,8 +91,8 @@ docker-compose up -d --build
 
 **Agents not appearing:**
 - Ensure mDNS/Avahi is working on your network
-- Check firewall rules for port 9100
-- Manually add agent IP in dashboard
+- Check firewall rules for port 9100 (agent-side) and 8080 (server-side)
+- Manually add agent IP in dashboard via `curl`
 
 **Can't connect to InfluxDB:**
 - Wait 30s for InfluxDB to initialize
