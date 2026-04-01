@@ -223,7 +223,7 @@ function selectAgent(agent: Agent) {
           {/if}
           <div class="flex items-baseline gap-3">
   <h1 class="text-3xl font-mono tracking-tight">SENTINEL</h1>
-  <span class="text-sm text-gray-500">v0.4-beta</span>
+  <span class="text-sm text-gray-500">v0.5-beta1</span>
 </div>
         </div>
         <p class="text-sm text-gray-500">Infrastructure monitoring</p>
