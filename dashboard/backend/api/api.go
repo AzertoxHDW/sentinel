@@ -37,6 +37,8 @@ func (s *Server) Start() error {
 	// CORS middleware
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("/api/settings/alerts", s.handleAlertSettings)
+
 	// Agent management endpoints
 	mux.HandleFunc("/api/agents", s.handleAgents)
 	mux.HandleFunc("/api/agents/", s.handleAgent)
@@ -333,4 +335,19 @@ func (s *Server) respondJSON(w http.ResponseWriter, status int, data interface{}
 // Helper: Respond with error
 func (s *Server) respondError(w http.ResponseWriter, status int, message string) {
 	s.respondJSON(w, status, map[string]string{"error": message})
+}
+
+func (s *Server) handleAlertSettings(w http.ResponseWriter, r *http.Request) {
+    switch r.Method {
+    case http.MethodGet:
+        s.respondJSON(w, http.StatusOK, s.store.GetAlertConfig())
+    case http.MethodPost:
+        var config storage.AlertConfig // Use the storage prefix here
+        if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+            s.respondError(w, http.StatusBadRequest, "Invalid config")
+            return
+        }
+        s.store.SaveAlertConfig(config)
+        s.respondJSON(w, http.StatusOK, config)
+    }
 }

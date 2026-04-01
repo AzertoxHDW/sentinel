@@ -61,20 +61,20 @@ func (mc *MetricsCollector) Stop() {
 
 func (mc *MetricsCollector) collectAll() {
 	agents := mc.store.GetAllAgents()
-	
+	alertConfig := mc.store.GetAlertConfig()
 	for _, agent := range agents {
 		err := mc.collectAgent(agent)
 		if err != nil {
 			if !mc.failureStates[agent.ID] {
 				log.Printf("⚠️ STATE CHANGE: %s transitioned from ONLINE -> OFFLINE", agent.Hostname)
-				mc.alerter.SendOfflineAlert(agent.Hostname, agent.ID)
+				mc.alerter.SendOfflineAlert(agent.Hostname, agent.ID, alertConfig)
 				mc.failureStates[agent.ID] = true
 			}
 			mc.store.UpdateAgentStatus(agent.ID, "offline")
 		} else {
 			if mc.failureStates[agent.ID] {
                 log.Printf("✅ STATE CHANGE: %s transitioned from OFFLINE -> ONLINE", agent.Hostname)
-				mc.alerter.SendOnlineAlert(agent.Hostname, agent.ID)
+				mc.alerter.SendOnlineAlert(agent.Hostname, agent.ID, alertConfig)
 				mc.failureStates[agent.ID] = false
 			}
 			mc.store.UpdateAgentStatus(agent.ID, "online")
@@ -87,10 +87,6 @@ func (mc *MetricsCollector) collectAgent(agent *storage.Agent) error {
 	metricsURL := fmt.Sprintf("http://%s:%d/metrics", agent.IPAddress, agent.Port)
 	resp, err := mc.httpClient.Get(metricsURL)
 	if err != nil {
-		if agent.Status == "online" {
-			log.Printf("ALERT: Agent %s just went offline!", agent.Hostname)
-			mc.alerter.SendOfflineAlert(agent.Hostname, agent.ID)
-		}
 		mc.store.UpdateAgentStatus(agent.ID, "offline")
 		return err
 	}
