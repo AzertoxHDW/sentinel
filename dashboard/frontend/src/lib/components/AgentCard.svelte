@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Agent, SystemMetrics } from '../api';
-  import { formatBytes, formatBytesRounded } from '../utils';
+  import { formatBytes, formatBytesRounded, formatUptime } from '../utils';
+  
   import Gauge from './Gauge.svelte';
 
   export let agent: Agent;
@@ -118,6 +119,14 @@
               </span>
             </div>
           {/if}
+
+          <!-- Uptime -->
+          <div class="flex items-center justify-between">
+            <span class="text-gray-500">Uptime</span>
+            <span class="text-gray-400 font-mono">
+              {formatUptime(metrics.uptime)}
+            </span>
+          </div>
         </div>
 
         <!-- Disk Usage -->
