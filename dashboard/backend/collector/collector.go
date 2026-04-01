@@ -67,14 +67,14 @@ func (mc *MetricsCollector) collectAll() {
 		if err != nil {
 			if !mc.failureStates[agent.ID] {
 				log.Printf("⚠️ STATE CHANGE: %s transitioned from ONLINE -> OFFLINE", agent.Hostname)
-				// Alert sending code
+				mc.alerter.SendOfflineAlert(agent.Hostname, agent.ID)
 				mc.failureStates[agent.ID] = true
 			}
 			mc.store.UpdateAgentStatus(agent.ID, "offline")
 		} else {
 			if mc.failureStates[agent.ID] {
                 log.Printf("✅ STATE CHANGE: %s transitioned from OFFLINE -> ONLINE", agent.Hostname)
-				// Recovery sending code
+				mc.alerter.SendOnlineAlert(agent.Hostname, agent.ID)
 				mc.failureStates[agent.ID] = false
 			}
 			mc.store.UpdateAgentStatus(agent.ID, "online")

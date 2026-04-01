@@ -34,12 +34,12 @@ services:
       - INFLUX_TOKEN=sentinel-super-secret-token-change-me-in-production
       - INFLUX_ORG=sentinel
       - INFLUX_BUCKET=metrics
-      - ALERT_WEBHOOK=
     command: [
       "-influx-url=http://localhost:8086", 
       "-influx-token=sentinel-super-secret-token-change-me-in-production",
       "-influx-org=sentinel",
-      "-influx-bucket=metrics"
+      "-influx-bucket=metrics",
+      "-alert-webhook=https://discord.com/api/webhooks/lorem-ipsum"
     ]
     depends_on:
       influxdb:

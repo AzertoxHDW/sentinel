@@ -19,7 +19,6 @@ func main() {
 	dataFile := flag.String("data", "agents.json", "Agent storage file")
 	collectInterval := flag.Duration("interval", 30*time.Second, "Metrics collection interval")
 	webhookURL := flag.String("alert-webhook", "", "Discord/Slack Webhook URL for alerts")
-    flag.Parse()
 	
 	// InfluxDB config
 	influxURL := flag.String("influx-url", "http://localhost:8086", "InfluxDB URL")
